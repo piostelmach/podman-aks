@@ -1,0 +1,39 @@
+parameters:
+  - name: azureSubscription
+    type: string
+    default: azureSubscription
+  - name: fullPathToDockerfile
+    type: string
+    default: fullPathToDockerfile
+  - name: imageName
+    type: string 
+    default: imageName
+  - name: FullAcrImagePath
+    type: string 
+    default: FullAcrImagePath
+
+
+steps:
+- task: AzureCLI@2
+  displayName: 'Build and push image to ACR'
+  inputs:
+    azureSubscription: '$(azureSubscription)'
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      export AZURE_CLIENT_ID=$servicePrincipalId
+      export AZURE_CLIENT_SECRET=$servicePrincipalKey
+      export AZURE_TENANT_ID=$tenantId
+      
+      podman build -t $(imageName):$(Build.BuildId) -f $(fullPathToDockerfile)
+      podman tag localhost/$(imageName):$(Build.BuildId) $(FullAcrImagePath):$(Build.BuildId)
+      podman tag localhost/$(imageName):$(Build.BuildId) $(FullAcrImagePath):$(Build.SourceBranchName)
+
+      podman push $(FullAcrImagePath):$(Build.BuildId)
+      podman push $(FullAcrImagePath):$(Build.SourceBranchName)
+
+      podman rmi $(FullAcrImagePath):$(Build.BuildId)
+      podman rmi $(FullAcrImagePath):$(Build.SourceBranchName)
+      podman rmi localhost/$(imageName):$(Build.BuildId)
+
+    addSpnToEnvironment: true

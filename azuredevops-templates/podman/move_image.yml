@@ -1,0 +1,25 @@
+parameters:
+    - name: azureSubscription
+      type: string
+      default: azureSubscription
+    - name: SrcFullAcrImagePath
+      type: string 
+      default: SrcFullAcrImagePath
+    - name: DstFullAcrImagePath
+      type: string 
+      default: DstFullAcrImagePath
+
+steps:
+- task: AzureCLI@2
+  displayName: 'Move image from $(SrcFullAcrImagePath) to $(DstFullAcrImagePath)'
+  inputs:
+    azureSubscription: '$(azureSubscription)'
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      export AZURE_CLIENT_ID=$servicePrincipalId
+      export AZURE_CLIENT_SECRET=$servicePrincipalKey
+      export AZURE_TENANT_ID=$tenantId
+      
+      crane copy $(SrcFullAcrImagePath) $(DstFullAcrImagePath)
+    addSpnToEnvironment: true

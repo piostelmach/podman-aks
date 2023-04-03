@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: private-agents
+---
+apiVersion: v1
+kind: ConfigMap 
+metadata:
+  name: docker-config
+  labels:
+    app: docker-config
+  namespace: private-agents
+data:
+  config.json: |
+    { "credHelpers": { "acr1.azurecr.io": "acr-env", "acr2.azurecr.io": "acr-env", "acr3.azurecr.io": "acr-env" } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: private-agents
+  labels:
+    app: private-agents
+  namespace: private-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: private-agents
+  template:
+    metadata:
+      labels:
+        app: private-agents
+    spec:
+      serviceAccountName: workload-identity-sa
+      containers:
+      - name: private-agents
+        image: adoimage
+        resources:
+          limits:
+            memory: 3G
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        env:
+          - name: AZP_URL
+            value: "https://xxx"
+          - name: AZP_POOL
+            value: "xxx"
+          - name: AZP_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ado-pat-token
+                key: ado-pat-token
+        volumeMounts:
+          - name: docker-credential-acr-env
+            mountPath: /root/.docker
+          - name: secrets-store01-inline
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+          - name: var-lib-docker
+            mountPath: /var/lib/containers
+      volumes:
+        - name: var-lib-docker
+          emptyDir: {}
+        - name: docker-config
+          configMap:
+            name: docker-config
+        - name: docker-credential-acr-env
+          configMap:
+            name: docker-config
+        - name: secrets-store01-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-kvname-workload-identity"
